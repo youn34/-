@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>早八生存儀表板 UniHub — 馬卡龍大學生小幫手</title>
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 載入圓潤可愛的繁體中文字型與數字字型 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Fredoka', 'Noto Sans TC', 'sans-serif'],
+          },
+          colors: {
+            notebook: '#FFFDF9',
+            ink: '#3D3A38',
+            macaronPink: '#FFD6E0',
+            macaronMint: '#D4F4E2',
+            macaronLavender: '#E2D4F9',
+            macaronLemon: '#FFF3C4',
+            macaronSky: '#D0EBFF',
+            macaronPeach: '#FFE3CC',
+            macaronLilac: '#F8D8F0',
+            macaronPistachio: '#E3F6D5',
+          },
+          boxShadow: {
+            cute: '3px 3px 0px #3D3A38',
+            cuteSm: '2px 2px 0px #3D3A38',
+            cuteLg: '5px 5px 0px #3D3A38',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* 方格筆記本背景紋理 (對應手稿的方格紙) */
+    body {
+      background-color: #FFFDF9;
+      background-image:
+        linear-gradient(to right, #EFECE6 1px, transparent 1px),
+        linear-gradient(to bottom, #EFECE6 1px, transparent 1px);
+      background-size: 22px 22px;
+      color: #3D3A38;
+    }
+
+    /* 可愛手繪感卡片按壓回饋 */
+    .cute-btn {
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+    }
+    .cute-btn:hover {
+      transform: translate(-1px, -1px);
+    }
+    .cute-btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 0px 0px 0px #3D3A38 !important;
+    }
+
+    /* 自訂捲軸樣式 */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #FFFDF9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #D6D1C7;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #B8B2A6;
+    }
+  </style>
+</head>
+<body class="min-h-screen font-sans antialiased selection:bg-[#FFD6E0] selection:text-[#3D3A38] pb-12">
+
+  <!-- 浮動 Toast 提示區 (取代 alert) -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- 主容器 -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6">
+
+    <!-- ==========================================================
+         頂部區域：小標題列 + 還原手稿的 🔴 3天內 / 🟡 7天內 突發狀況欄
+    =========================================================== -->
+    <header class="mb-6">
+      <!-- 頂部品牌與跨裝置同步列 -->
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div class="flex items-center gap-2.5">
+          <span class="inline-flex items-center justify-center w-9 h-9 rounded-2xl bg-[#FFF3C4] border-2 border-[#3D3A38] shadow-cuteSm text-lg">
+            🎒
+          </span>
+          <div>
+            <h1 class="text-lg sm:text-xl font-black tracking-tight text-[#3D3A38] flex items-center gap-2">
+              早八生存儀表板 <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-[#D0EBFF] border border-[#3D3A38]">UniHub</span>
+            </h1>
+            <p class="text-[11px] sm:text-xs text-[#6E6A66]">Apple 檔案直達 · 分數保衛戰 · 早八穿搭轉盤 · NotebookLM 刷題</p>
+          </div>
+        </div>
+
+        <!-- 跨裝置同步與快速新增突發按鈕 -->
+        <div class="flex items-center gap-2">
+          <button onclick="openSyncModal()" class="cute-btn px-3 py-1.5 rounded-xl bg-white border-2 border-[#3D3A38] shadow-cuteSm text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+            <span>☁️</span>
+            <span class="hidden sm:inline">電腦 / iPad 同步備份</span>
+            <span class="sm:hidden">同步</span>
+          </button>
+          <button onclick="toggleAlertDrawer()" class="cute-btn px-3.5 py-1.5 rounded-xl bg-[#FFD6E0] border-2 border-[#3D3A38] shadow-cuteSm text-xs font-bold flex items-center gap-1 cursor-pointer">
+            <span>＋ 新增突發狀況</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 還原手稿頂部：🔴 3天內 & 🟡 7天內 突發佈告欄 -->
+      <div class="bg-white/90 backdrop-blur-sm border-2 border-[#3D3A38] rounded-[20px] shadow-cute p-4 sm:p-5 space-y-3">
+        <!-- 🔴 3天內 -->
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <div class="flex items-center gap-2 shrink-0 min-w-[96px]">
+            <span class="w-4 h-4 rounded-full bg-[#FF595E] border-2 border-[#3D3A38] inline-block shrink-0"></span>
+            <span class="font-black text-base text-[#E63946] tracking-wide">3天內：</span>
+          </div>
+          <div id="alerts-3days-list" class="flex flex-wrap items-center gap-2 flex-1">
+            <!-- JS 動態渲染 -->
+          </div>
+        </div>
+
+        <div class="border-t border-dashed border-[#D6D1C7]"></div>
+
+        <!-- 🟡 7天內 -->
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <div class="flex items-center gap-2 shrink-0 min-w-[96px]">
+            <span class="w-4 h-4 rounded-full bg-[#FFCA3A] border-2 border-[#3D3A38] inline-block shrink-0"></span>
+            <span class="font-black text-base text-[#D99B00] tracking-wide">7天內：</span>
+          </div>
+          <div id="alerts-7days-list" class="flex flex-wrap items-center gap-2 flex-1">
+            <!-- JS 動態渲染 -->
+          </div>
+        </div>
+
+        <!-- 可展開的「無腦貼上老師公告」新增列 -->
+        <div id="alert-add-drawer" class="hidden pt-3 mt-2 border-t-2 border-[#3D3A38] bg-[#FFFDF9] rounded-2xl p-3.5">
+          <div class="flex flex-wrap items-center gap-2.5">
+            <select id="new-alert-urgency" class="px-3 py-2 rounded-xl bg-white border-2 border-[#3D3A38] text-xs font-bold focus:outline-none">
+              <option value="3days">🔴 3天內緊急</option>
+              <option value="7days">🟡 7天內提醒</option>
+            </select>
+            <select id="new-alert-course" class="px-3 py-2 rounded-xl bg-white border-2 border-[#3D3A38] text-xs font-bold focus:outline-none">
+              <!-- JS 動態填入課程名稱 -->
+            </select>
+            <input type="text" id="new-alert-text" placeholder="貼上老師訊息，例如：下週三企業參訪不需上課，改交500字心得..."
+              onkeydown="if(event.key==='Enter') addNewAlert()"
+              class="flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-white border-2 border-[#3D3A38] text-xs font-medium focus:outline-none focus:bg-[#FFF3C4]/30">
+            <button onclick="addNewAlert()" class="cute-btn px-4 py-2 rounded-xl bg-[#D4F4E2] border-2 border-[#3D3A38] shadow-cuteSm text-xs font-black cursor-pointer">
+              貼上便利貼 📌
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ==========================================================
+         主體工作區：左側 `=` 收合導覽欄 + 右側四大分頁內容
+    =========================================================== -->
+    <div class="flex flex-col md:flex-row gap-5 items-start">
+
+      <!-- 左側導覽列 (還原手稿左邊的 `=` 符號與四個藍色框框標籤) -->
+      <aside id="left-sidebar" class="w-full md:w-36 shrink-0 flex md:flex-col items-center md:items-stretch gap-2.5 overflow-x-auto pb-1 md:pb-0">
+        <!-- 手稿中的 `=` 兩條橫線切換鈕 -->
+        <button onclick="toggleSidebarCompact()" title="展開 / 收合側邊選單"
+          class="cute-btn w-12 h-11 md:w-14 md:h-11 rounded-2xl bg-white border-2 border-[#3D3A38] shadow-cuteSm flex flex-col items-center justify-center gap-1.5 shrink-0 cursor-pointer">
+          <span class="w-6 h-[3px] bg-[#3D3A38] rounded-full"></span>
+          <span class="w-6 h-[3px] bg-[#3D3A38] rounded-full"></span>
+        </button>
+
+        <!-- 導覽按鈕 1：課表 -->
+        <button onclick="switchMainTab('schedule')" id="tab-btn-schedule"
+          class="nav-pill cute-btn px-4 py-2.5 rounded-2xl border-2 border-[#3B82F6] bg-[#D0EBFF] text-[#1D4ED8] font-black text-sm shadow-cuteSm flex items-center justify-center md:justify-start gap-2 shrink-0 cursor-pointer">
+          <span class="text-base">🗓️</span>
+          <span class="nav-label">課表</span>
+        </button>
+
+        <!-- 導覽按鈕 2：Syllabus -->
+        <button onclick="switchMainTab('syllabus')" id="tab-btn-syllabus"
+          class="nav-pill cute-btn px-4 py-2.5 rounded-2xl border-2 border-[#3B82F6] bg-white text-[#2563EB] font-bold text-sm shadow-cuteSm flex items-center justify-center md:justify-start gap-2 shrink-0 cursor-pointer">
+          <span class="text-base">📊</span>
+          <span class="nav-label">Syllabus</span>
+        </button>
+
+        <!-- 導覽按鈕 3：OOTD -->
+        <button onclick="switchMainTab('ootd')" id="tab-btn-ootd"
+          class="nav-pill cute-btn px-4 py-2.5 rounded-2xl border-2 border-[#3B82F6] bg-white text-[#2563EB] font-bold text-sm shadow-cuteSm flex items-center justify-center md:justify-start gap-2 shrink-0 cursor-pointer">
+          <span class="text-base">🎡</span>
+          <span class="nav-label">OOTD</span>
+        </button>
+
+        <!-- 導覽按鈕 4：考前複習 -->
+        <button onclick="switchMainTab('review')" id="tab-btn-review"
+          class="nav-pill cute-btn px-4 py-2.5 rounded-2xl border-2 border-[#3B82F6] bg-white text-[#2563EB] font-bold text-sm shadow-cuteSm flex items-center justify-center md:justify-start gap-2 shrink-0 cursor-pointer">
+          <span class="text-base">🧠</span>
+          <span class="nav-label">考前複習</span>
+        </button>
+      </aside>
+
+      <!-- 右側主內容畫布 -->
+      <main class="flex-1 w-full min-w-0">
+
+        <!-- ======================================================
+             分頁 1：課表 (4x2 馬卡龍課程卡片陣列，完全對應手稿)
+        ======================================================= -->
+        <section id="view-schedule" class="space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <h2 class="text-base sm:text-lg font-black text-[#3D3A38]">本學期課程傳送門 (4×2 卡片牆)</h2>
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-white border border-[#3D3A38] text-[#6E6A66]">點擊愛心可記錄點名扣打</span>
+            </div>
+            <span class="text-xs text-[#6E6A66]">💡 點擊卡片右上角「✏️」可貼上 Apple 檔案與 NotebookLM 連結</span>
+          </div>
+
+          <!-- 4欄 x 2列 響應式網格 (桌機與 iPad 橫向呈現 4x2，iPad 直向呈現 2x4) -->
+          <div id="course-grid-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            <!-- JS 動態渲染 8 張馬卡龍課程卡片 -->
+          </div>
+        </section>
+
+        <!-- ======================================================
+             分頁 2：Syllabus (分數精算機 & 點名扣打 — 替代相簿截圖)
+        ======================================================= -->
+        <section id="view-syllabus" class="hidden space-y-5">
+          <div class="bg-white/95 border-2 border-[#3D3A38] rounded-[20px] shadow-cute p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-black text-[#3D3A38]">📊 Syllabus 分數保衛戰 & 點名扣打</h2>
+              <p class="text-xs text-[#6E6A66] mt-0.5">輸入配分與目前成績，系統即時幫你算出「期末再考幾分及格」與「距離 A 還差幾分」，不用再翻手機相簿截圖！</p>
+            </div>
+            <button onclick="openCourseModal(null)" class="cute-btn px-3.5 py-2 rounded-xl bg-[#D4F4E2] border-2 border-[#3D3A38] shadow-cuteSm text-xs font-black cursor-pointer">
+              ＋ 新增一門課程
+            </button>
+          </div>
+
+          <div id="syllabus-list-container" class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <!-- JS 動態渲染各科分數精算卡片 -->
+          </div>
+        </section>
+
+        <!-- ======================================================
+             分頁 3：OOTD (早八穿搭色系小轉盤)
+        ======================================================= -->
+        <section id="view-ootd" class="hidden space-y-5">
+          <div class="bg-white/95 border-2 border-[#3D3A38] rounded-[22px] shadow-cute p-5 sm:p-6">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+              <div>
+                <h2 class="text-lg sm:text-xl font-black text-[#3D3A38]">🎡 早八穿搭救星小轉盤 (OOTD Color Wheel)</h2>
+                <p class="text-xs text-[#6E6A66] mt-0.5">早上想不到穿什麼？轉一下直接幫你決定上半身與下半身色系，抓了就出門！</p>
+              </div>
+              <label class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FFF3C4] border-2 border-[#3D3A38] text-xs font-bold cursor-pointer select-none">
+                <input type="checkbox" id="ootd-exclude-yesterday" checked class="w-4 h-4 accent-[#3D3A38] rounded">
+                <span>🚫 排除昨天穿過的組合</span>
+              </label>
+            </div>
+
+            <!-- 雙轉盤區域 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              <!-- 上半身轉盤 -->
+              <div class="bg-[#FFFDF9] border-2 border-[#3D3A38] rounded-3xl p-4 flex flex-col items-center">
+                <span class="px-3 py-1 rounded-full bg-[#FFD6E0] border-2 border-[#3D3A38] text-xs font-black mb-3">👚 上半身色系 / 單品</span>
+                <div class="relative w-60 h-60 sm:w-64 sm:h-64 flex items-center justify-center">
+                  <!-- 指針 -->
+                  <div class="absolute -top-2 z-10 w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[20px] border-t-[#3D3A38]"></div>
+                  <canvas id="canvas-top-wheel" width="260" height="260" class="w-full h-full rounded-full border-2 border-[#3D3A38] shadow-cuteSm"></canvas>
+                </div>
+                <div id="result-top-label" class="mt-3 text-sm font-black text-[#3D3A38] px-4 py-1.5 rounded-xl bg-white border-2 border-[#3D3A38]">
+                  準備抽取上半身 ✨
+                </div>
+              </div>
+
+              <!-- 下半身轉盤 -->
+              <div class="bg-[#FFFDF9] border-2 border-[#3D3A38] rounded-3xl p-4 flex flex-col items-center">
+                <span class="px-3 py-1 rounded-full bg-[#D0EBFF] border-2 border-[#3D3A38] text-xs font-black mb-3">👖 下半身色系 / 單品</span>
+                <div class="relative w-60 h-60 sm:w-64 sm:h-64 flex items-center justify-center">
+                  <!-- 指針 -->
+                  <div class="absolute -top-2 z-10 w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[20px] border-t-[#3D3A38]"></div>
+                  <canvas id="canvas-bottom-wheel" width="260" height="260" class="w-full h-full rounded-full border-2 border-[#3D3A38] shadow-cuteSm"></canvas>
+                </div>
+                <div id="result-bottom-label" class="mt-3 text-sm font-black text-[#3D3A38] px-4 py-1.5 rounded-xl bg-white border-2 border-[#3D3A38]">
+                  準備抽取下半身 ✨
+                </div>
+              </div>
+            </div>
+
+            <!-- 轉動按鈕與今日結果橫幅 -->
+            <div class="mt-6 flex flex-col items-center gap-4">
+              <button id="btn-spin-ootd" onclick="spinOotdWheels()"
+                class="cute-btn px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#FFD6E0] via-[#FFF3C4] to-[#D4F4E2] border-2 border-[#3D3A38] shadow-cute text-base font-black text-[#3D3A38] cursor-pointer">
+                🎰 轉出今日早八穿搭！
+              </button>
+
+              <div id="ootd-final-banner" class="hidden w-full max-w-xl p-4 rounded-2xl bg-[#E2D4F9] border-2 border-[#3D3A38] shadow-cuteSm text-center">
+                <div class="text-xs font-bold text-[#3D3A38]/80">🎉 今日早八穿搭公式已決定</div>
+                <div id="ootd-final-text" class="text-lg sm:text-xl font-black text-[#3D3A38] mt-1"></div>
+              </div>
+            </div>
+
+            <!-- 自訂衣櫃色系清單 -->
+            <div class="mt-6 pt-5 border-t-2 border-dashed border-[#D6D1C7] grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="p-3.5 rounded-2xl bg-[#FFFDF9] border-2 border-[#3D3A38]">
+                <div class="text-xs font-black mb-2">👚 自訂上半身選項</div>
+                <div id="wardrobe-top-tags" class="flex flex-wrap gap-1.5 mb-2.5"></div>
+                <div class="flex gap-1.5">
+                  <input type="text" id="input-new-top" placeholder="例如：奶杏色針織" onkeydown="if(event.key==='Enter') addWardrobeItem('top')"
+                    class="flex-1 px-2.5 py-1.5 rounded-xl bg-white border-2 border-[#3D3A38] text-xs">
+                  <button onclick="addWardrobeItem('top')" class="cute-btn px-3 py-1.5 rounded-xl bg-[#FFD6E0] border-2 border-[#3D3A38] text-xs font-bold cursor-pointer">新增</button>
+                </div>
+              </div>
+
+              <div class="p-3.5 rounded-2xl bg-[#FFFDF9] border-2 border-[#3D3A38]">
+                <div class="text-xs font-black mb-2">👖 自訂下半身選項</div>
+                <div id="wardrobe-bottom-tags" class="flex flex-wrap gap-1.5 mb-2.5"></div>
+                <div class="flex gap-1.5">
+                  <input type="text" id="input-new-bottom" placeholder="例如：水洗牛仔褲" onkeydown="if(event.key==='Enter') addWardrobeItem('bottom')"
+                    class="flex-1 px-2.5 py-1.5 rounded-xl bg-white border-2 border-[#3D3A38] text-xs">
+                  <button onclick="addWardrobeItem('bottom')" class="cute-btn px-3 py-1.5 rounded-xl bg-[#D0EBFF] border-2 border-[#3D3A38] text-xs font-bold cursor-pointer">新增</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ======================================================
+             分頁 4：考前複習 (NotebookLM 刷題中樞 + 咒語複製)
+        ======================================================= -->
+        <section id="view-review" class="hidden space-y-5">
+          <!-- 區塊 A：一鍵複製 NotebookLM 刷題咒語 -->
+          <div class="bg-white/95 border-2 border-[#3D3A38] rounded-[22px] shadow-cute p-5">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div>
+                <h2 class="text-lg font-black text-[#3D3A38]">🧠 NotebookLM 期中期末刷題中樞</h2>
+                <p class="text-xs text-[#6E6A66] mt-0.5">點擊下方咒語卡片自動複製，接著點開該科的 NotebookLM 筆記本貼上就能直接出題複習！</p>
+              </div>
+              <a href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer"
+                class="cute-btn px-3.5 py-2 rounded-xl bg-[#E2D4F9] border-2 border-[#3D3A38] shadow-cuteSm text-xs font-black">
+                ↗ 前往 NotebookLM 首頁
+              </a>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <button onclick="copyPromptTemplate(0)" class="cute-btn text-left p-3.5 rounded-2xl bg-[#FFF3C4] border-2 border-[#3D3A38] shadow-cuteSm cursor-pointer">
+                <div class="text-xs font-black text-[#3D3A38]">📝 10 題單選模擬考</div>
+                <p class="text-[11px] text-[#57534E] mt-1 line-clamp-2">根據簡報出 10 題容易考的單選題，最後再統一附詳解與易錯觀念。</p>
+                <span class="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-[#3D3A38]">📋 點擊複製咒語</span>
+              </button>
+
+              <button onclick="copyPromptTemplate(1)" class="cute-btn text-left p-3.5 rounded-2xl bg-[#D4F4E2] border-2 border-[#3D3A38] shadow-cuteSm cursor-pointer">
+                <div class="text-xs font-black text-[#3D3A38]">⚡ 考前 10 分鐘急救包</div>
+                <p class="text-[11px] text-[#57534E] mt-1 line-clamp-2">幫我把這些講義濃縮成 1 頁考前必背公式與核心定義清單。</p>
+                <span class="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-[#3D3A38]">📋 點擊複製咒語</span>
+              </button>
+
+              <button onclick="copyPromptTemplate(2)" class="cute-btn text-left p-3.5 rounded-2xl bg-[#FFD6E0] border-2 border-[#3D3A38] shadow-cuteSm cursor-pointer">
+                <div class="text-xs font-black text-[#3D3A38]">🔍 易混淆觀念對照表</div>
+                <p class="text-[11px] text-[#57534E] mt-1 line-clamp-2">找出簡報裡最容易搞混的名詞或理論，用表格列出差異與例子。</p>
+                <span class="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-[#3D3A38]">📋 點擊複製咒語</span>
+              </button>
+
+              <button onclick="copyPromptTemplate(3)" class="cute-btn text-left p-3.5 rounded-2xl bg-[#D0EBFF] border-2 border-[#3D3A38] shadow-cuteSm cursor-pointer">
+                <div class="text-xs font-black text-[#3D3A38]">🎯 申論 / 計算題預測</div>
+                <p class="text-[11px] text-[#57534E] mt-1 line-clamp-2">模擬教授出題角度，設計 3 題高配分計算或申論題並提供解題步驟。</p>
+                <span class="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-[#3D3A38]">📋 點擊複製咒語</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 區塊 B：各科專屬 NotebookLM & Apple 檔案快速通道 -->
+          <div id="review-courses-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- JS 動態渲染 -->
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ==========================================================
+       彈窗 1：編輯 / 新增課程設定 Modal (含 Apple 檔案連結教學)
+  =========================================================== -->
+  <div id="course-modal" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-[#FFFDF9] border-2 border-[#3D3A38] rounded-[24px] shadow-cuteLg max-w-lg w-full p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b-2 border-[#3D3A38]">
+        <h3 id="modal-course-title" class="text-lg font-black text-[#3D3A38]">✏️ 編輯課程與傳送門連結</h3>
+        <button onclick="closeCourseModal()" class="w-8 h-8 rounded-xl bg-white border-2 border-[#3D3A38] font-black text-sm cursor-pointer">✕</button>
+      </div>
+
+      <div class="space-y-3.5 mt-4 text-xs">
+        <input type="hidden" id="edit-course-id">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-black mb-1">課程名稱</label>
+            <input type="text" id="edit-course-name" placeholder="例如：微積分"
+              class="w-full px-3 py-2 rounded-xl bg-white border-2 border-[#3D3A38] font-bold focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-black mb-1">上課時間與教室</label>
+            <input type="text" id="edit-course-time" placeholder="例如：週一 09:10 · 綜院 102"
+              class="w-full px-3 py-2 rounded-xl bg-white border-2 border-[#3D3A38] font-medium focus:outline-none">
+          </div>
+        </div>
+
+        <!-- 馬卡龍顏色選擇器 -->
+        <div>
+          <label class="block font-black mb-1.5">卡片馬卡龍色系</label>
+          <div id="color-picker-row" class="flex flex-wrap gap-2">
+            <!-- JS 生成色票按鈕 -->
+          </div>
+        </div>
+
+        <!-- Apple 檔案連結 -->
+        <div class="p-3 rounded-2xl bg-[#D0EBFF]/40 border-2 border-[#3D3A38]">
+          <label class="block font-black mb-1">📁 Apple「檔案」資料夾連結 (iCloud Drive / 捷徑)</label>
+          <input type="text" id="edit-course-apple-link" placeholder="貼上 https://www.icloud.com/iclouddrive/... 或 shortcuts://..."
+            class="w-full px-3 py-2 rounded-xl bg-white border-2 border-[#3D3A38] font-mono text-[11px] focus:outline-none">
+          <p class="text-[11px] text-[#57534E] mt-1.5 leading-relaxed">
+            💡 <strong>蘋果生態小技巧：</strong>在 iPad「檔案」App 長按該科資料夾 →「共享」→「拷貝連結」貼在這裡，點卡片就能直接開啟你的講義，不用重複上傳！
+          </p>
+        </div>
+
+        <!-- NotebookLM 連結 -->
+        <div class="p-3 rounded-2xl bg-[#E2D4F9]/40 border-2 border-[#3D3A38]">
+          <label class="block font-black mb-1">🧠 NotebookLM 專屬筆記本網址</label>
+          <input type="text" id="edit-course-notebook-link" placeholder="貼上 https://notebooklm.google.com/notebook/..."
+            class="w-full px-3 py-2 rounded-xl bg-white border-2 border-[#3D3A38] font-mono text-[11px] focus:outline-none">
+        </div>
+
+        <!-- 點名額度設定 -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-black mb-1">這學期可請假/缺席總扣打</label>
+            <input type="number" id="edit-course-max-hearts" min="1" max="10" value="3"
+              class="w-full px-3 py-2 rounded-xl bg-white border-2 border-[#3D3A38] font-bold">
+          </div>
+          <div>
+            <label class="block font-black mb-1">目前剩餘愛心數 ❤️</label>
+            <input type="number" id="edit-course-hearts" min="0" max="10" value="3"
+              class="w-full px-3 py-2 rounded-xl bg-white border-2 border-[#3D3A38] font-bold">
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-5 pt-4 border-t-2 border-[#3D3A38] flex items-center justify-between gap-2">
+        <button id="btn-delete-course" onclick="deleteCurrentCourse()" class="cute-btn px-3.5 py-2 rounded-xl bg-[#FFD6E0] border-2 border-[#3D3A38] text-xs font-black text-[#B91C1C] cursor-pointer">
+          🗑️ 刪除此課程
+        </button>
+        <div class="flex items-center gap-2 ml-auto">
+          <button onclick="closeCourseModal()" class="cute-btn px-4 py-2 rounded-xl bg-white border-2 border-[#3D3A38] text-xs font-bold cursor-pointer">取消</button>
+          <button onclick="saveCourseModal()" class="cute-btn px-5 py-2 rounded-xl bg-[#D4F4E2] border-2 border-[#3D3A38] shadow-cuteSm text-xs font-black cursor-pointer">儲存設定 ✓</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================
+       彈窗 2：電腦 / iPad 跨裝置同步備份 Modal
+  =========================================================== -->
+  <div id="sync-modal" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-[#FFFDF9] border-2 border-[#3D3A38] rounded-[24px] shadow-cuteLg max-w-lg w-full p-5 sm:p-6">
+      <div class="flex items-center justify-between pb-3 border-b-2 border-[#3D3A38]">
+        <h3 class="text-lg font-black text-[#3D3A38]">☁️ 電腦與 iPad 資料同步備份</h3>
+        <button onclick="closeSyncModal()" class="w-8 h-8 rounded-xl bg-white border-2 border-[#3D3A38] font-black text-sm cursor-pointer">✕</button>
+      </div>
+
+      <p class="text-xs text-[#57534E] mt-3 leading-relaxed">
+        目前資料自動儲存在這台裝置的瀏覽器中。如果你想把電腦設定好的課表與分數轉移到 iPad（或存進 Apple「檔案」備份），只要複製下方代碼貼到另一台裝置即可！
+      </p>
+
+      <div class="mt-3">
+        <textarea id="sync-json-area" rows="5" placeholder="這裡會顯示你的同步代碼，也可以在這裡貼上代碼還原..."
+          class="w-full p-3 rounded-2xl bg-white border-2 border-[#3D3A38] font-mono text-[11px] focus:outline-none"></textarea>
+      </div>
+
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <button onclick="resetToDefaultDemo()" class="cute-btn px-3 py-2 rounded-xl bg-[#FFD6E0] border-2 border-[#3D3A38] text-xs font-bold cursor-pointer">
+          ↺ 恢復預設範例
+        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="copySyncCode()" class="cute-btn px-3.5 py-2 rounded-xl bg-[#FFF3C4] border-2 border-[#3D3A38] shadow-cuteSm text-xs font-black cursor-pointer">
+            📋 複製同步代碼
+          </button>
+          <button onclick="importSyncCode()" class="cute-btn px-3.5 py-2 rounded-xl bg-[#D4F4E2] border-2 border-[#3D3A38] shadow-cuteSm text-xs font-black cursor-pointer">
+            📥 匯入還原
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================================
+    // 1. 常數與預設資料 (對應手稿的 微積分 / 經濟學 / 英文 / 體育)
+    // ==========================================================
+    const STORAGE_KEY = 'unihub_macaron_v1';
+
+    const MACARON_COLORS = [
+      { name: '草莓粉', hex: '#FFD6E0' },
+      { name: '檸檬黃', hex: '#FFF3C4' },
+      { name: '寶寶藍', hex: '#D0EBFF' },
+      { name: '薄荷綠', hex: '#D4F4E2' },
+      { name: '香芋紫', hex: '#E2D4F9' },
+      { name: '蜜桃橘', hex: '#FFE3CC' },
+      { name: '丁香粉', hex: '#F8D8F0' },
+      { name: '開心果', hex: '#E3F6D5' },
+    ];
+
+    const PROMPT_TEMPLATES = [
+      "請根據我上傳的這份課程簡報，幫我出 10 題期中/期末考最常考的單選題（每題 4 個選項）。先不要在題目旁邊直接寫答案，等我作答完或請你公布時，再統一列出正確答案、詳解以及這題最容易踩雷的觀念！",
+      "我快要考試了！請幫我把這些課程講義濃縮成一份「考前 10 分鐘急救重點清單」，用條列式整理出所有必背專有名詞定義、核心公式以及教授最強調的結論。",
+      "請幫我掃描這些簡報內容，找出同學最容易搞混的 5 組概念或理論，並用 Markdown 表格整理出它們的「定義差異」、「適用情境」與「生活化舉例」。",
+      "請模擬大學教授的出題角度，根據這份簡報設計 3 題高配分的計算題或申論題，並提供完整的滿分答題架構與逐步推導過程。"
+    ];
+
+    const DEFAULT_STATE = {
+      activeTab: 'schedule',
+      sidebarCompact: false,
+      selectedModalColor: '#FFD6E0',
+      alerts: [
+        { id: 101, urgency: '3days', course: '微積分', text: '週五 23:59 前交第三章習題 PDF' },
+        { id: 102, urgency: '3days', course: '經濟學', text: '明天助教課臨時改到綜院 201 教室' },
+        { id: 103, urgency: '7days', course: '英文', text: '下週三企業參訪不需上課，改交 500 字心得' }
+      ],
+      courses: [
+        {
+          id: 'c1',
+          name: '微積分',
+          time: '週一 09:10 · 綜院 102',
+          color: '#FFD6E0',
+          maxHearts: 3,
+          hearts: 2,
+          midWeight: 30,
+          finalWeight: 40,
+          hwWeight: 30,
+          midScore: 68,
+          hwScore: 85,
+          appleLink: '',
+          notebookLink: 'https://notebooklm.google.com/'
+        },
+        {
+          id: 'c2',
+          name: '經濟學',
+          time: '週二 10:10 · 商院 305',
+          color: '#FFF3C4',
+          maxHearts: 3,
+          hearts: 3,
+          midWeight: 35,
+          finalWeight: 35,
+          hwWeight: 30,
+          midScore: 76,
+          hwScore: 90,
+          appleLink: '',
+          notebookLink: 'https://notebooklm.google.com/'
+        },
+        {
+          id: 'c3',
+          name: '英文',
+          time: '週三 13:10 · 外語大樓 204',
+          color: '#D0EBFF',
+          maxHearts: 2,
+          hearts: 2,
+          midWeight: 25,
+          finalWeight: 35,
+          hwWeight: 40,
+          midScore: 84,
+          hwScore: 88,
+          appleLink: '',
+          notebookLink: 'https://notebooklm.google.com/'
+        },
+        {
+          id: 'c4',
+          name: '體育',
+          time: '週四 15:10 · 綜合體育館',
+          color: '#D4F4E2',
+          maxHearts: 3,
+          hearts: 3,
+          midWeight: 30,
+          finalWeight: 30,
+          hwWeight: 40,
+          midScore: 88,
+          hwScore: 92,
+          appleLink: '',
+          notebookLink: ''
+        },
+        {
+          id: 'c5',
+          name: '通識心理學',
+          time: '週五 10:10 · 百年樓 105',
+          color: '#E2D4F9',
+          maxHearts: 3,
+          hearts: 1,
+          midWeight: 30,
+          finalWeight: 40,
+          hwWeight: 30,
+          midScore: 62,
+          hwScore: 78,
+          appleLink: '',
+          notebookLink: 'https://notebooklm.google.com/'
+        },
+        {
+          id: 'c6',
+          name: '程式設計概論',
+          time: '週二 14:10 · 電算中心',
+          color: '#FFE3CC',
+          maxHearts: 3,
+          hearts: 3,
+          midWeight: 30,
+          finalWeight: 40,
+          hwWeight: 30,
+          midScore: 90,
+          hwScore: 95,
+          appleLink: '',
+          notebookLink: 'https://notebooklm.google.com/'
+        }
+      ],
+      ootd: {
+        topItems: ['奶杏色針織', '寶寶藍襯衫', '燕麥白衛衣', '香芋紫開襟衫', '薄荷綠 T 恤', '經典條紋衫'],
+        bottomItems: ['水洗丹寧褲', '奶油白寬褲', '炭灰西裝褲', '卡其百褶裙', '深藍牛仔裙'],
+        yesterdayCombo: null
+      }
+    };
+
+    let appState = loadAppState();
+    let wheelAngles = { top: 0, bottom: 0 };
+    let isSpinning = false;
+
+    // ==========================================================
+    // 2. 初始化與 LocalStorage 讀寫
+    // ==========================================================
+    function loadAppState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          return JSON.parse(raw);
+        }
+      } catch (e) {
+        console.warn('讀取本地存檔失敗，使用預設資料', e);
+      }
+      return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    }
+
+    function saveAppState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      } catch (e) {
+        console.warn('儲存本地資料失敗', e);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderAll();
+      drawOotdWheel('canvas-top-wheel', appState.ootd.topItems, wheelAngles.top);
+      drawOotdWheel('canvas-bottom-wheel', appState.ootd.bottomItems, wheelAngles.bottom);
+    });
+
+    function renderAll() {
+      renderAlerts();
+      renderAlertCourseOptions();
+      renderScheduleGrid();
+      renderSyllabusList();
+      renderReviewHub();
+      renderWardrobeTags();
+    }
+
+    // ==========================================================
+    // 3. 頂部 🔴 3天內 & 🟡 7天內 突發狀況牆邏輯
+    // ==========================================================
+    function renderAlerts() {
+      const list3 = document.getElementById('alerts-3days-list');
+      const list7 = document.getElementById('alerts-7days-list');
+
+      const items3 = appState.alerts.filter(a => a.urgency === '3days');
+      const items7 = appState.alerts.filter(a => a.urgency === '7days');
+
+      list3.innerHTML = items3.length
+        ? items3.map(a => createAlertPillHTML(a, '#FFD6E0')).join('')
+        : `<span class="text-xs text-[#8C877E] italic">太棒了！未來 3 天內沒有緊急死線 🎉</span>`;
+
+      list7.innerHTML = items7.length
+        ? items7.map(a => createAlertPillHTML(a, '#FFF3C4')).join('')
+        : `<span class="text-xs text-[#8C877E] italic">未來 7 天內暫無突發變動 ✨</span>`;
+    }
+
+    function createAlertPillHTML(alertItem, bgColor) {
+      return `
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl border-2 border-[#3D3A38] shadow-cuteSm text-xs font-bold" style="background-color: ${bgColor};">
+          <span class="px-1.5 py-0.5 rounded-lg bg-white border border-[#3D3A38] text-[11px]">${escapeHtml(alertItem.course)}</span>
+          <span class="text-[#3D3A38]">${escapeHtml(alertItem.text)}</span>
+          <button onclick="removeAlert(${alertItem.id})" title="已完成 / 撕掉便利貼"
+            class="ml-1 w-5 h-5 rounded-full bg-white/80 hover:bg-white border border-[#3D3A38] flex items-center justify-center text-[10px] cursor-pointer">
+            ✓
+          </button>
+        </div>
+      `;
+    }
+
+    function toggleAlertDrawer() {
+      const drawer = document.getElementById('alert-add-drawer');
+      drawer.classList.toggle('hidden');
+      if (!drawer.classList.contains('hidden')) {
+        document.getElementById('new-alert-text').focus();
+      }
+    }
+
+    function renderAlertCourseOptions() {
+      const select = document.getElementById('new-alert-course');
+      const options = appState.courses.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`);
+      options.push(`<option value="全校/系辦">全校/系辦</option>`);
+      select.innerHTML = options.join('');
+    }
+
+    function addNewAlert() {
+      const urgency = document.getElementById('new-alert-urgency').value;
+      const course = document.getElementById('new-alert-course').value;
+      const inputEl = document.getElementById('new-alert-text');
+      const text = inputEl.value.trim();
+
+      if (!text) {
+        showToast('請先輸入或貼上突發狀況內容喔！', 'warn');
+        return;
+      }
+
+      appState.alerts.unshift({
+        id: Date.now(),
+        urgency,
+        course,
+        text
+      });
+      inputEl.value = '';
+      saveAppState();
+      renderAlerts();
+      showToast('📌 已將突發狀況貼到上方佈告欄！', 'success');
+    }
+
+    function removeAlert(id) {
+      appState.alerts = appState.alerts.filter(a => a.id !== id);
+      saveAppState();
+      renderAlerts();
+      showToast('✅ 已撕掉這張便利貼！', 'info');
+    }
+
+    // ==========================================================
+    // 4. 左側導覽列與分頁切換
+    // ==========================================================
+    function switchMainTab(tabName) {
+      appState.activeTab = tabName;
+      const tabs = ['schedule', 'syllabus', 'ootd', 'review'];
+
+      tabs.forEach(t => {
+        const viewEl = document.getElementById(`view-${t}`);
+        const btnEl = document.getElementById(`tab-btn-${t}`);
+        if (t === tabName) {
+          viewEl.classList.remove('hidden');
+          btnEl.classList.remove('bg-white', 'text-[#2563EB]', 'font-bold');
+          btnEl.classList.add('bg-[#D0EBFF]', 'text-[#1D4ED8]', 'font-black');
+        } else {
+          viewEl.classList.add('hidden');
+          btnEl.classList.remove('bg-[#D0EBFF]', 'text-[#1D4ED8]', 'font-black');
+          btnEl.classList.add('bg-white', 'text-[#2563EB]', 'font-bold');
+        }
+      });
+
+      if (tabName === 'ootd') {
+        drawOotdWheel('canvas-top-wheel', appState.ootd.topItems, wheelAngles.top);
+        drawOotdWheel('canvas-bottom-wheel', appState.ootd.bottomItems, wheelAngles.bottom);
+      }
+    }
+
+    function toggleSidebarCompact() {
+      appState.sidebarCompact = !appState.sidebarCompact;
+      const sidebar = document.getElementById('left-sidebar');
+      const labels = document.querySelectorAll('.nav-label');
+
+      if (appState.sidebarCompact) {
+        sidebar.classList.remove('md:w-36');
+        sidebar.classList.add('md:w-16');
+        labels.forEach(el => el.classList.add('md:hidden'));
+      } else {
+        sidebar.classList.remove('md:w-16');
+        sidebar.classList.add('md:w-36');
+        labels.forEach(el => el.classList.remove('md:hidden'));
+      }
+    }
+
+    // ==========================================================
+    // 5. 分數精算核心公式 (計算期末及格線 & A 等第線)
+    // ==========================================================
+    function calculateGradeAdvice(course) {
+      const midW = Number(course.midWeight) || 0;
+      const hwW = Number(course.hwWeight) || 0;
+      const finalW = Number(course.finalWeight) || 0;
+
+      const midEarned = (Number(course.midScore) || 0) * (midW / 100);
+      const hwEarned = (Number(course.hwScore) || 0) * (hwW / 100);
+      const currentTotal = midEarned + hwEarned;
+
+      // 距離及格 (60分) 與 A (85分) 的總分差額
+      const gapToPass = Math.max(0, 60 - currentTotal);
+      const gapToA = Math.max(0, 85 - currentTotal);
+
+      let passMsg = '';
+      let passShortBadge = '';
+      if (gapToPass <= 0) {
+        passMsg = `🟢 安全線：已累積 ${currentTotal.toFixed(1)} 分，期末就算考 0 分也確定及格！`;
+        passShortBadge = `🎉 已確定及格`;
+      } else if (finalW <= 0) {
+        passMsg = `⚠️ 期末配分為 0%，目前總分 ${currentTotal.toFixed(1)} 分（距及格差 ${gapToPass.toFixed(1)} 分）`;
+        passShortBadge = `⚠️ 距及格差 ${Math.ceil(gapToPass)} 分`;
+      } else {
+        const neededFinalForPass = (gapToPass / (finalW / 100));
+        if (neededFinalForPass > 100) {
+          passMsg = `🚨 危機提醒：目前累積 ${currentTotal.toFixed(1)} 分，期末需考 ${neededFinalForPass.toFixed(0)} 分（超過滿分），快找教授或助教補救！`;
+          passShortBadge = `🚨 需找教授補救`;
+        } else {
+          passMsg = `🟢 安全線：你期末只要再考 <strong>${Math.ceil(neededFinalForPass)} 分</strong>（滿分100制）就及格了！`;
+          passShortBadge = `🎯 期末再考 ${Math.ceil(neededFinalForPass)} 分及格`;
+        }
+      }
+
+      let aMsg = '';
+      if (gapToA <= 0) {
+        aMsg = `🏆 衝刺線：太神啦！目前已穩拿 A (85分) 以上！`;
+      } else if (finalW > 0) {
+        const neededFinalForA = gapToA / (finalW / 100);
+        if (neededFinalForA <= 100) {
+          aMsg = `🏆 衝刺線：距離總成績 <strong>A (85分)</strong> 還差 <strong>${gapToA.toFixed(1)} 分</strong>（期末需考 <strong>${Math.ceil(neededFinalForA)} 分</strong> 以上）。`;
+        } else {
+          aMsg = `🏆 衝刺線：距離總成績 A (85分) 還差 ${gapToA.toFixed(1)} 分（期末滿分最高可達 ${(currentTotal + finalW).toFixed(1)} 分）。`;
+        }
+      } else {
+        aMsg = `🏆 衝刺線：距離總成績 A (85分) 還差 ${gapToA.toFixed(1)} 分。`;
+      }
+
+      return { currentTotal, passMsg, aMsg, passShortBadge };
+    }
+
+    // ==========================================================
+    // 6. 分頁 1：課表 4x2 馬卡龍卡片牆渲染
+    // ==========================================================
+    function renderScheduleGrid() {
+      const container = document.getElementById('course-grid-container');
+      const totalSlots = Math.max(8, appState.courses.length); // 至少維持 8 格 (4x2)
+      let html = '';
+
+      for (let i = 0; i < totalSlots; i++) {
+        const course = appState.courses[i];
+        if (course) {
+          const advice = calculateGradeAdvice(course);
+          const heartsHTML = renderHeartsHTML(course);
+
+          html += `
+            <div class="rounded-[20px] border-2 border-[#3D3A38] shadow-cute p-4 flex flex-col justify-between min-h-[215px] transition hover:-translate-y-0.5"
+              style="background-color: ${course.color};">
+              <div>
+                <!-- 卡片頂部：課程名稱與編輯按鈕 -->
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 class="text-lg font-black text-[#3D3A38] leading-tight">${escapeHtml(course.name)}</h3>
+                    <p class="text-[11px] font-bold text-[#3D3A38]/75 mt-0.5">${escapeHtml(course.time || '尚未設定時間教室')}</p>
+                  </div>
+                  <button onclick="openCourseModal('${course.id}')" title="編輯課程與連結"
+                    class="cute-btn w-8 h-8 rounded-xl bg-white/90 border-2 border-[#3D3A38] flex items-center justify-center text-xs shrink-0 cursor-pointer">
+                    ✏️
+                  </button>
+                </div>
+
+                <!-- 點名扣打愛心列 -->
+                <div class="mt-3 flex items-center justify-between bg-white/75 px-2.5 py-1.5 rounded-xl border border-[#3D3A38]">
+                  <span class="text-[11px] font-bold text-[#3D3A38]">請假扣打</span>
+                  <div class="flex items-center gap-0.5">${heartsHTML}</div>
+                </div>
+
+                <!-- 分數保衛戰一句話提示 -->
+                <div onclick="switchMainTab('syllabus')" title="點擊前往 Syllabus 精算機"
+                  class="mt-2 px-2.5 py-1.5 rounded-xl bg-white/85 border border-[#3D3A38] text-[11px] font-black text-[#3D3A38] cursor-pointer hover:bg-white">
+                  ${advice.passShortBadge}
+                </div>
+              </div>
+
+              <!-- 底部雙傳送門按鈕：Apple 檔案 + NotebookLM -->
+              <div class="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-[#3D3A38]/25">
+                <button onclick="handleOpenAppleFiles('${course.id}')"
+                  class="cute-btn py-2 px-2 rounded-xl bg-white border-2 border-[#3D3A38] shadow-cuteSm text-[11px] font-black text-[#3D3A38] flex items-center justify-center gap-1 cursor-pointer">
+                  <span>📁</span>
+                  <span>Apple 檔案</span>
+                </button>
+                <button onclick="handleOpenNotebookLM('${course.id}')"
+                  class="cute-btn py-2 px-2 rounded-xl bg-[#3D3A38] border-2 border-[#3D3A38] shadow-cuteSm text-[11px] font-black text-white flex items-center justify-center gap-1 cursor-pointer">
+                  <span>🧠</span>
+                  <span>NotebookLM</span>
+                </button>
+              </div>
+            </div>
+          `;
+        } else {
+          // 空白格子 (對應手稿下排預留擴充的格子)
+          html += `
+            <button onclick="openCourseModal(null)"
+              class="cute-btn rounded-[20px] border-2 border-dashed border-[#3D3A38]/60 bg-white/65 hover:bg-white p-4 flex flex-col items-center justify-center min-h-[215px] text-center cursor-pointer group">
+              <div class="w-11 h-11 rounded-2xl bg-[#FFF3C4] border-2 border-[#3D3A38] flex items-center justify-center text-xl font-black mb-2 group-hover:scale-110 transition">
+                ＋
+              </div>
+              <span class="text-sm font-black text-[#3D3A38]">新增課程卡片</span>
+              <span class="text-[11px] text-[#6E6A66] mt-1">連結 Apple 檔案與成績精算</span>
+            </button>
+          `;
+        }
+      }
+
+      container.innerHTML = html;
+    }
+
+    function renderHeartsHTML(course) {
+      const maxH = Math.max(1, Number(course.maxHearts) || 3);
+      const curH = Math.min(maxH, Math.max(0, Number(course.hearts)));
+      let html = '';
+      for (let i = 1; i <= maxH; i++) {
+        const filled = i <= curH;
+        html += `
+          <button onclick="toggleCourseHeart('${course.id}', ${i})" title="點擊調整剩餘點名扣打"
+            class="text-sm leading-none hover:scale-125 transition cursor-pointer">
+            ${filled ? '❤️' : '🤍'}
+          </button>
+        `;
+      }
+      return html;
+    }
+
+    function toggleCourseHeart(courseId, clickedIndex) {
+      const course = appState.courses.find(c => c.id === courseId);
+      if (!course) return;
+      // 如果點到目前最後一顆實心愛心，就減 1；否則設為 clickedIndex
+      if (course.hearts === clickedIndex) {
+        course.hearts = Math.max(0, clickedIndex - 1);
+      } else {
+        course.hearts = clickedIndex;
+      }
+      saveAppState();
+      renderScheduleGrid();
+      renderSyllabusList();
+
+      if (course.hearts === 0) {
+        showToast(`🚨 「${course.name}」請假扣打已經歸零啦！下次一定要去上課！`, 'warn');
+      } else {
+        showToast(`❤️ 「${course.name}」剩餘 ${course.hearts} 次請假扣打`, 'info');
+      }
+    }
+
+    function handleOpenAppleFiles(courseId) {
+      const course = appState.courses.find(c => c.id === courseId);
+      if (!course) return;
+      if (course.appleLink && course.appleLink.trim() !== '') {
+        window.open(course.appleLink.trim(), '_blank', 'noopener,noreferrer');
+      } else {
+        showToast(`📁 尚未設定「${course.name}」的 Apple 檔案連結，請在此貼上 iCloud 資料夾網址！`, 'info');
+        openCourseModal(courseId);
+      }
+    }
+
+    function handleOpenNotebookLM(courseId) {
+      const course = appState.courses.find(c => c.id === courseId);
+      if (!course) return;
+      if (course.notebookLink && course.notebookLink.trim() !== '') {
+        window.open(course.notebookLink.trim(), '_blank', 'noopener,noreferrer');
+      } else {
+        showToast(`🧠 尚未設定「${course.name}」的 NotebookLM 專屬筆記本網址，請先貼上！`, 'info');
+        openCourseModal(courseId);
+      }
+    }
+
+    // ==========================================================
+    // 7. 分頁 2：Syllabus 分數精算機渲染與即時計算
+    // ==========================================================
+    function renderSyllabusList() {
+      const container = document.getElementById('syllabus-list-container');
+      container.innerHTML = appState.courses.map(course => {
+        const advice = calculateGradeAdvice(course);
+        const totalWeight = (Number(course.midWeight) || 0) + (Number(course.finalWeight) || 0) + (Number(course.hwWeight) || 0);
+        const progressPercent = Math.min(100, Math.max(0, advice.currentTotal));
+
+        return `
+          <div class="rounded-[22px] border-2 border-[#3D3A38] shadow-cute p-5 space-y-4" style="background-color: ${course.color};">
+            <!-- 標題列與愛心扣打 -->
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-lg font-black text-[#3D3A38]">${escapeHtml(course.name)}</h3>
+                <span class="text-xs font-bold text-[#3D3A38]/75">${escapeHtml(course.time || '')}</span>
+              </div>
+              <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-2xl border-2 border-[#3D3A38]">
+                <span class="text-xs font-black">扣打：</span>
+                <div class="flex items-center gap-0.5">${renderHeartsHTML(course)}</div>
+              </div>
+            </div>
+
+            <!-- 配分比例輸入區 -->
+            <div class="bg-white/90 border-2 border-[#3D3A38] rounded-2xl p-3.5 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-black text-[#3D3A38]">📐 學期配分比例 (%)</span>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${totalWeight === 100 ? 'bg-[#D4F4E2] text-[#166534]' : 'bg-[#FFD6E0] text-[#991B1B]'} border border-[#3D3A38]">
+                  總和：${totalWeight}% ${totalWeight === 100 ? '✓' : '(建議調為100%)'}
+                </span>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <label class="block text-[11px] font-bold text-[#57534E] mb-1">期中考 %</label>
+                  <input type="number" value="${course.midWeight}" min="0" max="100"
+                    onchange="updateCourseField('${course.id}', 'midWeight', this.value)"
+                    class="w-full px-2.5 py-1.5 rounded-xl bg-[#FFFDF9] border-2 border-[#3D3A38] font-black text-center">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-[#57534E] mb-1">期末考 %</label>
+                  <input type="number" value="${course.finalWeight}" min="0" max="100"
+                    onchange="updateCourseField('${course.id}', 'finalWeight', this.value)"
+                    class="w-full px-2.5 py-1.5 rounded-xl bg-[#FFFDF9] border-2 border-[#3D3A38] font-black text-center">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-[#57534E] mb-1">平時/作業 %</label>
+                  <input type="number" value="${course.hwWeight}" min="0" max="100"
+                    onchange="updateCourseField('${course.id}', 'hwWeight', this.value)"
+                    class="w-full px-2.5 py-1.5 rounded-xl bg-[#FFFDF9] border-2 border-[#3D3A38] font-black text-center">
+                </div>
+              </div>
+
+              <!-- 目前已拿成績輸入 -->
+              <div class="grid grid-cols-2 gap-2.5 pt-2 border-t border-dashed border-[#D6D1C7] text-xs">
+                <div>
+                  <label class="block text-[11px] font-bold text-[#57534E] mb-1">📝 期中考原始分數</label>
+                  <input type="number" value="${course.midScore}" min="0" max="100"
+                    onchange="updateCourseField('${course.id}', 'midScore', this.value)"
+                    class="w-full px-3 py-1.5 rounded-xl bg-[#FFF3C4]/50 border-2 border-[#3D3A38] font-black text-center">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-[#57534E] mb-1">📚 平時/作業目前平均</label>
+                  <input type="number" value="${course.hwScore}" min="0" max="100"
+                    onchange="updateCourseField('${course.id}', 'hwScore', this.value)"
+                    class="w-full px-3 py-1.5 rounded-xl bg-[#D4F4E2]/50 border-2 border-[#3D3A38] font-black text-center">
+                </div>
+              </div>
+            </div>
+
+            <!-- 視覺化總分進度條 + 白話文建議 -->
+            <div class="bg-white border-2 border-[#3D3A38] rounded-2xl p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between text-xs font-black">
+                <span>目前已入手總分：<span class="text-base text-[#2563EB]">${advice.currentTotal.toFixed(1)}</span> / 100 分</span>
+                <span class="text-[11px] text-[#6E6A66]">60分及格 · 85分A</span>
+              </div>
+
+              <!-- 進度條 (標記 60% 與 85% 基準線) -->
+              <div class="relative w-full h-5 rounded-full bg-[#EFECE6] border-2 border-[#3D3A38] overflow-hidden">
+                <div class="h-full bg-[#60A5FA] transition-all duration-300" style="width: ${progressPercent}%;"></div>
+                <!-- 60分及格線 -->
+                <div class="absolute top-0 bottom-0 w-[2px] bg-[#EF4444]" style="left: 60%;" title="60分及格線"></div>
+                <!-- 85分A線 -->
+                <div class="absolute top-0 bottom-0 w-[2px] bg-[#10B981]" style="left: 85%;" title="85分 A 等第線"></div>
+              </div>
+
+              <div class="space-y-1 text-xs text-[#3D3A38] leading-relaxed pt-1">
+                <p>${advice.passMsg}</p>
+                <p>${advice.aMsg}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateCourseField(courseId, field, rawVal) {
+      const course = appState.courses.find(c => c.id === courseId);
+      if (!course) return;
+      course[field] = Math.max(0, Math.min(100, Number(rawVal) || 0));
+      saveAppState();
+      renderSyllabusList();
+      renderScheduleGrid();
+    }
+
+    // ==========================================================
+    // 8. 分頁 3：OOTD 早八穿搭色系雙轉盤 (HTML5 Canvas)
+    // ==========================================================
+    const WHEEL_PALETTE = ['#FFD6E0', '#FFF3C4', '#D0EBFF', '#D4F4E2', '#E2D4F9', '#FFE3CC', '#F8D8F0', '#E3F6D5'];
+
+    function drawOotdWheel(canvasId, items, rotationRad) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const radius = cx - 6;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!items || items.length === 0) {
+        ctx.fillStyle = '#FFFDF9';
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fill();
+        return;
+      }
+
+      const sliceAngle = (Math.PI * 2) / items.length;
+
+      items.forEach((label, idx) => {
+        const startAngle = rotationRad + idx * sliceAngle;
+        const endAngle = startAngle + sliceAngle;
+
+        // 扇形填色
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = WHEEL_PALETTE[idx % WHEEL_PALETTE.length];
+        ctx.fill();
+
+        // 扇形邊框
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#3D3A38';
+        ctx.stroke();
+
+        // 文字標籤
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(startAngle + sliceAngle / 2);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#3D3A38';
+        ctx.font = 'bold 13px "Noto Sans TC", sans-serif';
+        ctx.fillText(label, radius - 16, 5);
+        ctx.restore();
+      });
+
+      // 中心可愛圓鈕
+      ctx.beginPath();
+      ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFFDF9';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#3D3A38';
+      ctx.stroke();
+    }
+
+    function spinOotdWheels() {
+      if (isSpinning) return;
+      const tops = appState.ootd.topItems;
+      const bottoms = appState.ootd.bottomItems;
+
+      if (tops.length === 0 || bottoms.length === 0) {
+        showToast('請先在下方至少各保留一個上半身與下半身選項喔！', 'warn');
+        return;
+      }
+
+      isSpinning = true;
+      const btn = document.getElementById('btn-spin-ootd');
+      btn.textContent = '🎲 正在為你搭配早八穿搭...';
+
+      const excludeYesterday = document.getElementById('ootd-exclude-yesterday').checked;
+      const yesterday = appState.ootd.yesterdayCombo;
+
+      // 選出目標索引 (若勾選排除昨天且選項大於1個，則避開昨天的單品)
+      let targetTopIdx = Math.floor(Math.random() * tops.length);
+      if (excludeYesterday && yesterday && tops.length > 1 && tops[targetTopIdx] === yesterday.top) {
+        targetTopIdx = (targetTopIdx + 1) % tops.length;
+      }
+
+      let targetBottomIdx = Math.floor(Math.random() * bottoms.length);
+      if (excludeYesterday && yesterday && bottoms.length > 1 && bottoms[targetBottomIdx] === yesterday.bottom) {
+        targetBottomIdx = (targetBottomIdx + 1) % bottoms.length;
+      }
+
+      // 計算指針 (正上方 -Math.PI / 2) 對準目標扇形中心的角度
+      const topSlice = (Math.PI * 2) / tops.length;
+      const bottomSlice = (Math.PI * 2) / bottoms.length;
+
+      const finalTopAngle = -Math.PI / 2 - (targetTopIdx + 0.5) * topSlice + Math.PI * 2 * 6;
+      const finalBottomAngle = -Math.PI / 2 - (targetBottomIdx + 0.5) * bottomSlice + Math.PI * 2 * 7;
+
+      const startTop = wheelAngles.top % (Math.PI * 2);
+      const startBottom = wheelAngles.bottom % (Math.PI * 2);
+      const duration = 2200;
+      const startTime = performance.now();
+
+      function animateWheel(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(1, elapsed / duration);
+        // 平滑減速緩動函數 (easeOutCubic)
+        const ease = 1 - Math.pow(1 - progress, 3);
+
+        wheelAngles.top = startTop + (finalTopAngle - startTop) * ease;
+        wheelAngles.bottom = startBottom + (finalBottomAngle - startBottom) * ease;
+
+        drawOotdWheel('canvas-top-wheel', tops, wheelAngles.top);
+        drawOotdWheel('canvas-bottom-wheel', bottoms, wheelAngles.bottom);
+
+        if (progress < 1) {
+          requestAnimationFrame(animateWheel);
+        } else {
+          isSpinning = false;
+          btn.textContent = '🎰 再轉一次早八穿搭！';
+
+          const chosenTop = tops[targetTopIdx];
+          const chosenBottom = bottoms[targetBottomIdx];
+
+          document.getElementById('result-top-label').textContent = `👚 ${chosenTop}`;
+          document.getElementById('result-bottom-label').textContent = `👖 ${chosenBottom}`;
+
+          const banner = document.getElementById('ootd-final-banner');
+          banner.classList.remove('hidden');
+          document.getElementById('ootd-final-text').textContent = `${chosenTop} ＋ ${chosenBottom}`;
+
+          appState.ootd.yesterdayCombo = { top: chosenTop, bottom: chosenBottom };
+          saveAppState();
+          showToast(`✨ 今日早八穿搭決定：${chosenTop} ＋ ${chosenBottom}！`, 'success');
+        }
+      }
+
+      requestAnimationFrame(animateWheel);
+    }
+
+    function renderWardrobeTags() {
+      const topContainer = document.getElementById('wardrobe-top-tags');
+      const bottomContainer = document.getElementById('wardrobe-bottom-tags');
+
+      topContainer.innerHTML = appState.ootd.topItems.map((item, idx) => `
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#FFD6E0]/70 border border-[#3D3A38] text-xs font-bold">
+          ${escapeHtml(item)}
+          <button onclick="removeWardrobeItem('top', ${idx})" class="text-[10px] hover:text-red-600 cursor-pointer">✕</button>
+        </span>
+      `).join('');
+
+      bottomContainer.innerHTML = appState.ootd.bottomItems.map((item, idx) => `
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#D0EBFF]/70 border border-[#3D3A38] text-xs font-bold">
+          ${escapeHtml(item)}
+          <button onclick="removeWardrobeItem('bottom', ${idx})" class="text-[10px] hover:text-red-600 cursor-pointer">✕</button>
+        </span>
+      `).join('');
+    }
+
+    function addWardrobeItem(type) {
+      const inputEl = document.getElementById(type === 'top' ? 'input-new-top' : 'input-new-bottom');
+      const val = inputEl.value.trim();
+      if (!val) return;
+
+      if (type === 'top') {
+        appState.ootd.topItems.push(val);
+      } else {
+        appState.ootd.bottomItems.push(val);
+      }
+      inputEl.value = '';
+      saveAppState();
+      renderWardrobeTags();
+      drawOotdWheel('canvas-top-wheel', appState.ootd.topItems, wheelAngles.top);
+      drawOotdWheel('canvas-bottom-wheel', appState.ootd.bottomItems, wheelAngles.bottom);
+    }
+
+    function removeWardrobeItem(type, idx) {
+      if (type === 'top') {
+        appState.ootd.topItems.splice(idx, 1);
+      } else {
+        appState.ootd.bottomItems.splice(idx, 1);
+      }
+      saveAppState();
+      renderWardrobeTags();
+      drawOotdWheel('canvas-top-wheel', appState.ootd.topItems, wheelAngles.top);
+      drawOotdWheel('canvas-bottom-wheel', appState.ootd.bottomItems, wheelAngles.bottom);
+    }
+
+    // ==========================================================
+    // 9. 分頁 4：NotebookLM 考前複習中樞
+    // ==========================================================
+    function renderReviewHub() {
+      const container = document.getElementById('review-courses-list');
+      container.innerHTML = appState.courses.map(course => {
+        const hasNotebook = course.notebookLink && course.notebookLink.trim() !== '';
+        const hasApple = course.appleLink && course.appleLink.trim() !== '';
+
+        return `
+          <div class="rounded-[20px] border-2 border-[#3D3A38] shadow-cute p-4 flex flex-col justify-between gap-3" style="background-color: ${course.color};">
+            <div class="flex items-start justify-between">
+              <div>
+                <h3 class="text-base font-black text-[#3D3A38]">${escapeHtml(course.name)}</h3>
+                <p class="text-[11px] font-bold text-[#3D3A38]/75">${escapeHtml(course.time || '')}</p>
+              </div>
+              <button onclick="openCourseModal('${course.id}')" class="cute-btn px-2.5 py-1 rounded-xl bg-white border border-[#3D3A38] text-[11px] font-bold cursor-pointer">
+                設定網址
+              </button>
+            </div>
+
+            <div class="space-y-2">
+              <button onclick="handleOpenNotebookLM('${course.id}')"
+                class="cute-btn w-full py-2.5 px-3 rounded-xl bg-[#3D3A38] text-white border-2 border-[#3D3A38] shadow-cuteSm text-xs font-black flex items-center justify-center gap-2 cursor-pointer">
+                <span>🧠</span>
+                <span>${hasNotebook ? '開啟專屬 NotebookLM 刷題' : '綁定 NotebookLM 筆記本'}</span>
+              </button>
+              <button onclick="handleOpenAppleFiles('${course.id}')"
+                class="cute-btn w-full py-2 px-3 rounded-xl bg-white text-[#3D3A38] border-2 border-[#3D3A38] shadow-cuteSm text-xs font-black flex items-center justify-center gap-2 cursor-pointer">
+                <span>📁</span>
+                <span>${hasApple ? '打開 Apple 檔案簡報夾' : '綁定 Apple 檔案資料夾'}</span>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function copyPromptTemplate(idx) {
+      const text = PROMPT_TEMPLATES[idx];
+      copyTextToClipboard(text, '📋 已複製刷題咒語！現在去 NotebookLM 貼上就能出題囉！');
+    }
+
+    // ==========================================================
+    // 10. 編輯 / 新增課程彈窗 (Modal)
+    // ==========================================================
+    function openCourseModal(courseId) {
+      const modal = document.getElementById('course-modal');
+      const deleteBtn = document.getElementById('btn-delete-course');
+      const titleEl = document.getElementById('modal-course-title');
+
+      if (courseId) {
+        const course = appState.courses.find(c => c.id === courseId);
+        if (!course) return;
+        titleEl.textContent = `✏️ 編輯「${course.name}」設定與連結`;
+        document.getElementById('edit-course-id').value = course.id;
+        document.getElementById('edit-course-name').value = course.name;
+        document.getElementById('edit-course-time').value = course.time || '';
+        document.getElementById('edit-course-apple-link').value = course.appleLink || '';
+        document.getElementById('edit-course-notebook-link').value = course.notebookLink || '';
+        document.getElementById('edit-course-max-hearts').value = course.maxHearts || 3;
+        document.getElementById('edit-course-hearts').value = course.hearts ?? 3;
+        appState.selectedModalColor = course.color || '#FFD6E0';
+        deleteBtn.classList.remove('hidden');
+      } else {
+        titleEl.textContent = '➕ 新增一門課程卡片';
+        document.getElementById('edit-course-id').value = '';
+        document.getElementById('edit-course-name').value = '';
+        document.getElementById('edit-course-time').value = '';
+        document.getElementById('edit-course-apple-link').value = '';
+        document.getElementById('edit-course-notebook-link').value = 'https://notebooklm.google.com/';
+        document.getElementById('edit-course-max-hearts').value = 3;
+        document.getElementById('edit-course-hearts').value = 3;
+        appState.selectedModalColor = MACARON_COLORS[appState.courses.length % MACARON_COLORS.length].hex;
+        deleteBtn.classList.add('hidden');
+      }
+
+      renderColorPicker();
+      modal.classList.remove('hidden');
+    }
+
+    function closeCourseModal() {
+      document.getElementById('course-modal').classList.add('hidden');
+    }
+
+    function renderColorPicker() {
+      const row = document.getElementById('color-picker-row');
+      row.innerHTML = MACARON_COLORS.map(c => {
+        const isSelected = c.hex === appState.selectedModalColor;
+        return `
+          <button type="button" onclick="selectModalColor('${c.hex}')"
+            class="px-3 py-1.5 rounded-xl border-2 border-[#3D3A38] text-[11px] font-bold cursor-pointer transition ${isSelected ? 'ring-2 ring-[#3D3A38] scale-105' : 'opacity-80 hover:opacity-100'}"
+            style="background-color: ${c.hex};">
+            ${isSelected ? '✓ ' : ''}${c.name}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectModalColor(hex) {
+      appState.selectedModalColor = hex;
+      renderColorPicker();
+    }
+
+    function saveCourseModal() {
+      const id = document.getElementById('edit-course-id').value;
+      const name = document.getElementById('edit-course-name').value.trim();
+      if (!name) {
+        showToast('請輸入課程名稱喔！', 'warn');
+        return;
+      }
+
+      const time = document.getElementById('edit-course-time').value.trim();
+      const appleLink = document.getElementById('edit-course-apple-link').value.trim();
+      const notebookLink = document.getElementById('edit-course-notebook-link').value.trim();
+      const maxHearts = Math.max(1, Math.min(10, Number(document.getElementById('edit-course-max-hearts').value) || 3));
+      const hearts = Math.max(0, Math.min(maxHearts, Number(document.getElementById('edit-course-hearts').value) || 0));
+
+      if (id) {
+        const course = appState.courses.find(c => c.id === id);
+        if (course) {
+          course.name = name;
+          course.time = time;
+          course.color = appState.selectedModalColor;
+          course.appleLink = appleLink;
+          course.notebookLink = notebookLink;
+          course.maxHearts = maxHearts;
+          course.hearts = hearts;
+        }
+        showToast(`✅ 已更新「${name}」的課程卡片！`, 'success');
+      } else {
+        appState.courses.push({
+          id: 'c_' + Date.now(),
+          name,
+          time,
+          color: appState.selectedModalColor,
+          maxHearts,
+          hearts,
+          midWeight: 30,
+          finalWeight: 40,
+          hwWeight: 30,
+          midScore: 75,
+          hwScore: 85,
+          appleLink,
+          notebookLink
+        });
+        showToast(`🎉 已新增「${name}」到你的課表牆！`, 'success');
+      }
+
+      saveAppState();
+      renderAll();
+      closeCourseModal();
+    }
+
+    function deleteCurrentCourse() {
+      const id = document.getElementById('edit-course-id').value;
+      if (!id) return;
+      appState.courses = appState.courses.filter(c => c.id !== id);
+      saveAppState();
+      renderAll();
+      closeCourseModal();
+      showToast('🗑️ 已刪除該課程卡片', 'info');
+    }
+
+    // ==========================================================
+    // 11. 跨裝置同步備份與通用工具函式
+    // ==========================================================
+    function openSyncModal() {
+      document.getElementById('sync-json-area').value = JSON.stringify(appState);
+      document.getElementById('sync-modal').classList.remove('hidden');
+    }
+
+    function closeSyncModal() {
+      document.getElementById('sync-modal').classList.add('hidden');
+    }
+
+    function copySyncCode() {
+      const code = document.getElementById('sync-json-area').value;
+      copyTextToClipboard(code, '📋 已複製同步代碼！你可以透過 Apple 備忘錄或 AirDrop 傳到 iPad 貼上還原。');
+    }
+
+    function importSyncCode() {
+      const raw = document.getElementById('sync-json-area').value.trim();
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed.courses || !Array.isArray(parsed.courses)) {
+          throw new Error('格式不正確');
+        }
+        appState = parsed;
+        saveAppState();
+        renderAll();
+        closeSyncModal();
+        showToast('🎉 跨裝置資料匯入成功！', 'success');
+      } catch (e) {
+        showToast('❌ 同步代碼格式不正確，請確認有完整複製喔！', 'warn');
+      }
+    }
+
+    function resetToDefaultDemo() {
+      appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+      saveAppState();
+      renderAll();
+      closeSyncModal();
+      showToast('↺ 已恢復預設的馬卡龍範例課表！', 'info');
+    }
+
+    function copyTextToClipboard(text, successMessage) {
+      const temp = document.createElement('textarea');
+      temp.value = text;
+      temp.style.position = 'fixed';
+      temp.style.left = '-9999px';
+      document.body.appendChild(temp);
+      temp.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMessage, 'success');
+      } catch (err) {
+        showToast('複製失敗，請手動選取複製。', 'warn');
+      }
+      document.body.removeChild(temp);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const bgMap = {
+        success: 'bg-[#D4F4E2]',
+        warn: 'bg-[#FFD6E0]',
+        info: 'bg-[#FFF3C4]'
+      };
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto px-4 py-3 rounded-2xl border-2 border-[#3D3A38] shadow-cute text-xs font-black text-[#3D3A38] transition-all duration-300 ${bgMap[type] || bgMap.info}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+  </script>
+</body>
+</html>
